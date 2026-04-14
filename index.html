@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>HealthGuide — Symptom Checker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@700&family=Poppins:wght@400;600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              blue: '#0EA5E9',
+              green: '#10B981',
+              red: '#EF4444',
+              yellow: '#F59E0B',
+            }
+          },
+          fontFamily: {
+            display: ['Playfair Display', 'serif'],
+            body: ['Inter', 'sans-serif'],
+            ui: ['Poppins', 'sans-serif'],
+            label: ['Lato', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease; }
+    .page { display: none; }
+    .page.active { display: block; }
+    .fade-in { animation: fadeIn 0.5s ease forwards; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+    .slide-in { animation: slideIn 0.4s cubic-bezier(.4,0,.2,1) forwards; }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+    .pulse-dot { animation: pulseDot 1.8s infinite; }
+    @keyframes pulseDot { 0%,100%{transform:scale(1);opacity:1;} 50%{transform:scale(1.4);opacity:.6;} }
+    .progress-bar-fill { transition: width 0.5s cubic-bezier(.4,0,.2,1); }
+    .option-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(14,165,233,0.18); }
+    .option-btn { transition: all 0.2s ease; }
+    .option-btn.selected { border-color: #0EA5E9; background: linear-gradient(135deg,#0EA5E920,#10B98115); }
+    .result-card { animation: resultPop 0.6s cubic-bezier(.175,.885,.32,1.275) forwards; }
+    @keyframes resultPop { from{opacity:0;transform:scale(0.85);} to{opacity:1;transform:scale(1);} }
+    .lang-btn.active { background: linear-gradient(135deg,#0EA5E9,#10B981); color: white; }
+    .step-dot { transition: all 0.3s ease; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #0EA5E9; border-radius: 3px; }
+    .gradient-text { background: linear-gradient(135deg, #0EA5E9, #10B981); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .hero-bg { background: radial-gradient(ellipse at top left, #0EA5E915 0%, transparent 60%), radial-gradient(ellipse at bottom right, #10B98115 0%, transparent 60%); }
+    .dark .hero-bg { background: radial-gradient(ellipse at top left, #0EA5E920 0%, transparent 60%), radial-gradient(ellipse at bottom right, #10B98120 0%, transparent 60%); }
+    .card-hover { transition: all 0.3s ease; }
+    .card-hover:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
+    .dark .card-hover:hover { box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; font-family: 'Lato', sans-serif; letter-spacing: 0.05em; text-transform: uppercase; }
+  </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-100 font-body min-h-screen">
+
+  <!-- ───────────────────────── NAVBAR ───────────────────────── -->
+  <nav class="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 shadow-sm">
+    <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-2 cursor-pointer" onclick="goHome()">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-blue to-brand-green flex items-center justify-center">
+          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+          </svg>
+        </div>
+        <span class="font-ui font-700 text-lg text-gray-900 dark:text-white">Health<span class="gradient-text">Guide</span></span>
+      </div>
+      <div class="flex items-center gap-2">
+        <!-- Lang Toggle -->
+        <div class="flex items-center bg-gray-100 dark:bg-gray-800 rounded-full p-1 gap-1">
+          <button id="btn-en" onclick="setLang('en')" class="lang-btn active text-xs font-ui font-600 px-3 py-1 rounded-full transition-all">EN</button>
+          <button id="btn-rw" onclick="setLang('rw')" class="lang-btn text-xs font-ui font-600 px-3 py-1 rounded-full transition-all text-gray-500 dark:text-gray-400">RW</button>
+        </div>
+        <!-- Theme Toggle -->
+        <button onclick="toggleTheme()" class="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition-all" id="theme-btn">
+          <svg id="sun-icon" class="w-4 h-4 text-yellow-500 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path stroke-linecap="round" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          <svg id="moon-icon" class="w-4 h-4 text-brand-blue" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ───────────────────────── PAGE 1: LANDING ───────────────────────── -->
+  <div id="page-landing" class="page active pt-20">
+    <div class="hero-bg min-h-screen flex flex-col">
+      <!-- Hero -->
+      <section class="flex-1 flex items-center justify-center px-4 py-16">
+        <div class="max-w-3xl mx-auto text-center fade-in">
+          <div class="mb-6 flex justify-center">
+            <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-brand-blue to-brand-green flex items-center justify-center shadow-xl shadow-brand-blue/20">
+              <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+              </svg>
+            </div>
+          </div>
+          <span class="badge bg-brand-blue/10 text-brand-blue dark:bg-brand-blue/20 mb-4" id="hero-badge">Free · Private · Browser-only</span>
+          <h1 class="font-display text-5xl md:text-6xl font-700 text-gray-900 dark:text-white mb-4 leading-tight" id="hero-title">
+            Your Personal<br/><span class="gradient-text">Health Guide</span>
+          </h1>
+          <p class="font-body text-lg text-gray-600 dark:text-gray-400 mb-3 max-w-xl mx-auto leading-relaxed" id="hero-sub">
+            Answer a few simple questions about how you're feeling and get a clear, caring recommendation — instantly, privately, right here in your browser.
+          </p>
+          <p class="font-label text-sm text-gray-400 dark:text-gray-500 mb-10" id="hero-time">⏱ Takes about 2 minutes</p>
+          <button onclick="startChecker()" class="font-ui font-600 text-white px-10 py-4 rounded-2xl text-lg bg-gradient-to-r from-brand-blue to-brand-green hover:opacity-90 active:scale-95 transition-all shadow-lg shadow-brand-blue/30" id="cta-btn">
+            Start Symptom Check →
+          </button>
+          <p class="mt-4 font-label text-xs text-gray-400 dark:text-gray-500" id="cta-note">No data is stored. No account needed.</p>
+        </div>
+      </section>
+
+      <!-- How it works -->
+      <section class="px-4 pb-12">
+        <div class="max-w-4xl mx-auto">
+          <p class="text-center font-ui font-600 text-gray-400 dark:text-gray-500 text-xs uppercase tracking-widest mb-6" id="how-label">How it works</p>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 card-hover">
+              <div class="w-10 h-10 rounded-xl bg-brand-blue/10 flex items-center justify-center mb-3">
+                <span class="text-brand-blue text-xl">📋</span>
+              </div>
+              <h3 class="font-ui font-600 text-gray-900 dark:text-white mb-1" id="step1-title">Answer Questions</h3>
+              <p class="font-body text-sm text-gray-500 dark:text-gray-400 leading-relaxed" id="step1-desc">8 guided questions about your symptoms, severity, and history.</p>
+            </div>
+            <div class="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 card-hover">
+              <div class="w-10 h-10 rounded-xl bg-brand-green/10 flex items-center justify-center mb-3">
+                <span class="text-brand-green text-xl">🧠</span>
+              </div>
+              <h3 class="font-ui font-600 text-gray-900 dark:text-white mb-1" id="step2-title">Smart Analysis</h3>
+              <p class="font-body text-sm text-gray-500 dark:text-gray-400 leading-relaxed" id="step2-desc">Our logic weighs each answer using evidence-based triage principles.</p>
+            </div>
+            <div class="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 card-hover">
+              <div class="w-10 h-10 rounded-xl bg-brand-yellow/10 flex items-center justify-center mb-3">
+                <span class="text-yellow-500 text-xl">💡</span>
+              </div>
+              <h3 class="font-ui font-600 text-gray-900 dark:text-white mb-1" id="step3-title">Get Guidance</h3>
+              <p class="font-body text-sm text-gray-500 dark:text-gray-400 leading-relaxed" id="step3-desc">Receive a clear recommendation with actionable self-care steps.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ⚠️ LIMITATIONS SECTION -->
+      <section class="px-4 pb-16">
+        <div class="max-w-3xl mx-auto">
+          <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 rounded-2xl p-6 md:p-8">
+            <div class="flex items-start gap-4">
+              <div class="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-800/50 flex items-center justify-center shrink-0 mt-1">
+                <svg class="w-5 h-5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+              </div>
+              <div>
+                <h2 class="font-display text-xl font-700 text-amber-800 dark:text-amber-300 mb-3" id="limit-title">Important Limitations</h2>
+                <ul class="space-y-2 font-body text-sm text-amber-700 dark:text-amber-400 leading-relaxed list-none">
+                  <li class="flex gap-2"><span>•</span><span id="limit-1">This tool is <strong>not a medical diagnosis</strong>. It is a basic guidance tool only.</span></li>
+                  <li class="flex gap-2"><span>•</span><span id="limit-2">It cannot replace a <strong>qualified healthcare professional's</strong> assessment.</span></li>
+                  <li class="flex gap-2"><span>•</span><span id="limit-3">If you are experiencing a <strong>medical emergency</strong>, call your local emergency number immediately.</span></li>
+                  <li class="flex gap-2"><span>•</span><span id="limit-4">Recommendations are based on <strong>general triage principles</strong>, not your full medical history.</span></li>
+                  <li class="flex gap-2"><span>•</span><span id="limit-5"><strong>No personal data</strong> is collected, stored, or transmitted. Everything runs in your browser.</span></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ───────────────────────── PAGE 2: CHECKER ───────────────────────── -->
+  <div id="page-checker" class="page pt-20 min-h-screen hero-bg">
+    <div class="max-w-2xl mx-auto px-4 py-10">
+      <!-- Progress -->
+      <div class="mb-8">
+        <div class="flex items-center justify-between mb-2">
+          <span class="font-ui font-600 text-sm text-brand-blue" id="progress-label">Question 1 of 8</span>
+          <span class="font-label text-xs text-gray-400 dark:text-gray-500" id="progress-pct">0%</span>
+        </div>
+        <div class="w-full h-2 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
+          <div id="progress-bar" class="progress-bar-fill h-full bg-gradient-to-r from-brand-blue to-brand-green rounded-full" style="width:0%"></div>
+        </div>
+        <!-- Step dots -->
+        <div class="flex items-center justify-center gap-2 mt-4" id="step-dots"></div>
+      </div>
+
+      <!-- Question Card -->
+      <div id="question-card" class="bg-white dark:bg-gray-900 rounded-3xl p-8 shadow-xl shadow-gray-200/60 dark:shadow-gray-950/60 border border-gray-100 dark:border-gray-800 slide-in">
+        <div class="flex items-center gap-3 mb-5">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-blue to-brand-green flex items-center justify-center shrink-0">
+            <span id="q-icon" class="text-lg">❓</span>
+          </div>
+          <div>
+            <p class="font-label text-xs text-gray-400 dark:text-gray-500 uppercase tracking-widest" id="q-category">Category</p>
+            <p class="font-ui font-600 text-brand-blue text-sm" id="q-step-label">Step 1</p>
+          </div>
+        </div>
+        <h2 class="font-display text-2xl md:text-3xl font-700 text-gray-900 dark:text-white mb-2 leading-snug" id="q-title">Question title here</h2>
+        <p class="font-body text-sm text-gray-500 dark:text-gray-400 mb-7 italic" id="q-why">Why we ask this...</p>
+        <div id="q-options" class="space-y-3"></div>
+        <!-- Slider for severity -->
+        <div id="slider-container" class="hidden mt-4">
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-label text-xs text-gray-400">1 — Minimal</span>
+            <span class="font-ui font-700 text-2xl text-brand-blue" id="slider-val">5</span>
+            <span class="font-label text-xs text-gray-400">10 — Severe</span>
+          </div>
+          <input type="range" min="1" max="10" value="5" id="severity-slider" class="w-full accent-brand-blue cursor-pointer" oninput="updateSlider(this.value)"/>
+          <button onclick="submitSlider()" class="mt-5 w-full font-ui font-600 text-white py-3 rounded-xl bg-gradient-to-r from-brand-blue to-brand-green hover:opacity-90 transition-all" id="slider-btn">Continue →</button>
+        </div>
+      </div>
+
+      <!-- Back Button -->
+      <div class="mt-6 flex justify-center">
+        <button onclick="goBack()" id="back-btn" class="font-ui text-sm text-gray-400 dark:text-gray-500 hover:text-brand-blue dark:hover:text-brand-blue transition-colors flex items-center gap-1 hidden">
+          ← <span id="back-label">Go back</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ───────────────────────── PAGE 3: RESULTS ───────────────────────── -->
+  <div id="page-results" class="page pt-20 min-h-screen hero-bg">
+    <div class="max-w-2xl mx-auto px-4 py-10">
+      <!-- Result card -->
+      <div id="result-card" class="result-card bg-white dark:bg-gray-900 rounded-3xl p-8 shadow-xl border border-gray-100 dark:border-gray-800 mb-6">
+        <div class="text-center mb-6">
+          <div class="w-20 h-20 rounded-full mx-auto flex items-center justify-center text-4xl mb-4 shadow-lg" id="result-icon-wrap">🩺</div>
+          <span class="badge mb-3" id="result-badge">Recommendation</span>
+          <h2 class="font-display text-3xl md:text-4xl font-700 mb-3" id="result-title">Loading...</h2>
+          <p class="font-body text-gray-600 dark:text-gray-400 leading-relaxed" id="result-desc">Loading description...</p>
+        </div>
+        <!-- Score bar -->
+        <div class="bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-4 mb-6">
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-label text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide" id="score-label">Urgency Score</span>
+            <span class="font-ui font-700 text-lg" id="score-value">0/14</span>
+          </div>
+          <div class="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div id="score-bar" class="h-full rounded-full transition-all duration-700" style="width:0%"></div>
+          </div>
+        </div>
+        <!-- Self-manage steps -->
+        <div id="steps-section" class="hidden">
+          <h3 class="font-ui font-600 text-gray-900 dark:text-white mb-3 flex items-center gap-2" id="steps-title">
+            <span>💊</span> Recommended Self-Care Steps
+          </h3>
+          <ul id="steps-list" class="space-y-2"></ul>
+        </div>
+      </div>
+
+      <!-- Disclaimer card -->
+      <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 rounded-2xl p-4 mb-6">
+        <p class="font-body text-xs text-amber-700 dark:text-amber-400 text-center leading-relaxed" id="result-disclaimer">
+          ⚠️ This is not a medical diagnosis. If symptoms worsen, always seek professional care immediately.
+        </p>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex flex-col sm:flex-row gap-3">
+        <button onclick="startChecker()" class="flex-1 font-ui font-600 text-white py-3 rounded-2xl bg-gradient-to-r from-brand-blue to-brand-green hover:opacity-90 transition-all text-center" id="retake-btn">
+          🔄 Check Again
+        </button>
+        <button onclick="goHome()" class="flex-1 font-ui font-600 py-3 rounded-2xl border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-brand-blue hover:text-brand-blue dark:hover:text-brand-blue transition-all text-center" id="home-btn">
+          🏠 Back to Home
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ───────────────────────── JAVASCRIPT ───────────────────────── -->
+  <script>
+  // ─── TRANSLATIONS ───
+  const T = {
+    en: {
+      heroBadge: "Free · Private · Browser-only",
+      heroTitle: "Your Personal<br/><span class='gradient-text'>Health Guide</span>",
+      heroSub: "Answer a few simple questions about how you're feeling and get a clear, caring recommendation — instantly, privately, right here in your browser.",
+      heroTime: "⏱ Takes about 2 minutes",
+      ctaBtn: "Start Symptom Check →",
+      ctaNote: "No data is stored. No account needed.",
+      howLabel: "How it works",
+      step1Title: "Answer Questions", step1Desc: "8 guided questions about your symptoms, severity, and history.",
+      step2Title: "Smart Analysis", step2Desc: "Our logic weighs each answer using evidence-based triage principles.",
+      step3Title: "Get Guidance", step3Desc: "Receive a clear recommendation with actionable self-care steps.",
+      limitTitle: "Important Limitations",
+      limit1: "This tool is <strong>not a medical diagnosis</strong>. It is a basic guidance tool only.",
+      limit2: "It cannot replace a <strong>qualified healthcare professional's</strong> assessment.",
+      limit3: "If you are experiencing a <strong>medical emergency</strong>, call your local emergency number immediately.",
+      limit4: "Recommendations are based on <strong>general triage principles</strong>, not your full medical history.",
+      limit5: "<strong>No personal data</strong> is collected, stored, or transmitted. Everything runs in your browser.",
+      scoreLabel: "Urgency Score",
+      stepsTitle: "💊 Recommended Self-Care Steps",
+      resultDisclaimer: "⚠️ This is not a medical diagnosis. If symptoms worsen, always seek professional care immediately.",
+      retakeBtn: "🔄 Check Again",
+      homeBtn: "🏠 Back to Home",
+      backLabel: "Go back",
+    },
+    rw: {
+      heroBadge: "Bure · Ibanga · Gusa kuri Porogaramu",
+      heroTitle: "Umufasha Wawe<br/><span class='gradient-text'>w'Ubuzima</span>",
+      heroSub: "Subiza ibibazo bike byoroshye ku bijyanye n'ukuntu wiyumva maze ubone inama nziza — vuba, mu ibanga, no muri porogaramu yawe.",
+      heroTime: "⏱ Bitwara nka minutes 2",
+      ctaBtn: "Tangira Gupima →",
+      ctaNote: "Nta makuru abitswa. Nta konti ihitabwa.",
+      howLabel: "Uko bikorwa",
+      step1Title: "Subiza Ibibazo", step1Desc: "Ibibazo 8 bibyoroshye ku bimenyo, ubukana, n'amateka.",
+      step2Title: "Isesengura Ryizewe", step2Desc: "Ingengabitekerezo yacu isuzuma igisubizo cyawe.",
+      step3Title: "Bona Inama", step3Desc: "Bona inama igaragara n'ingamba zo kwiyitaho.",
+      limitTitle: "Ibibanziriza Ingenzi",
+      limit1: "Iyi nkoreshabikorwa <strong>si isuzuma ry'indwara</strong>. Ni umufasha gusa.",
+      limit2: "Ntishobora gusimbura <strong>isuzuma ry'umuganga</strong> w'umwuga.",
+      limit3: "Niba uri mu <strong>bigeragezo by'uburwayi bw'ihutirwa</strong>, hamagara inomero y'ihutirwa ubu.",
+      limit4: "Inama zikorwa hashingiwe ku <strong>mategeko rusange ya triage</strong>, si amateka yawe yose y'ubuvuzi.",
+      limit5: "<strong>Nta makuru bwite</strong> akusanywa, abitswa, cyangwa yoherezwa. Byose bikorwa muri porogaramu.",
+      scoreLabel: "Amanota y'Ubutave",
+      stepsTitle: "💊 Ingamba Zisabwa zo Kwiyitaho",
+      resultDisclaimer: "⚠️ Ibi si isuzuma ry'indwara. Niba bimenyo bigenda bikomera, shaka ubuvuzi bw'umwuga vuba.",
+      retakeBtn: "🔄 Subiramo",
+      homeBtn: "🏠 Subira Ahabanza",
+      backLabel: "Subira inyuma",
+    }
+  };
+
+  // ─── QUESTIONS ───
+  const QUESTIONS = {
+    en: [
+      {
+        id: 0, icon: "🚨", category: "Red Flag Filter", stepLabel: "Safety Check",
+        title: "Are you experiencing difficulty breathing, chest pain, or sudden confusion?",
+        why: "This is our most critical safety check. A 'Yes' requires immediate attention.",
+        type: "options",
+        options: [
+          { label: "Yes, I am experiencing one or more of these", value: "yes", score: 99, urgent: true },
+          { label: "No, I don't have any of these", value: "no", score: 0 }
+        ]
+      },
+      {
+        id: 1, icon: "🤒", category: "Primary Symptom", stepLabel: "Main Concern",
+        title: "What is your main concern today?",
+        why: "This helps us tailor the following questions to your specific situation.",
+        type: "options",
+        options: [
+          { label: "🌡️ Fever / Feeling hot", value: "fever", score: 1 },
+          { label: "😮‍💨 Cough / Breathing issues", value: "cough", score: 1 },
+          { label: "🤢 Stomach pain / Nausea", value: "stomach", score: 1 },
+          { label: "🤕 Injury / Pain somewhere", value: "injury", score: 1 },
+          { label: "😴 Fatigue / General weakness", value: "fatigue", score: 0 },
+          { label: "🤧 Headache / Cold symptoms", value: "headache", score: 0 }
+        ]
+      },
+      {
+        id: 2, icon: "📅", category: "Duration", stepLabel: "How Long",
+        title: "How many days have you been feeling this way?",
+        why: "Duration matters — a 3-week cough could indicate something more serious, like TB.",
+        type: "options",
+        options: [
+          { label: "Less than 1 day", value: "lt1", score: 0 },
+          { label: "1–3 days", value: "1to3", score: 0 },
+          { label: "4–7 days", value: "4to7", score: 1 },
+          { label: "1–2 weeks", value: "1to2w", score: 2 },
+          { label: "More than 2 weeks", value: "gt2w", score: 3 }
+        ]
+      },
+      {
+        id: 3, icon: "📊", category: "Severity", stepLabel: "Pain Level",
+        title: "On a scale of 1 to 10, how intense is your discomfort or pain?",
+        why: "High pain levels (above 7) generally indicate the need for professional evaluation.",
+        type: "slider"
+      },
+      {
+        id: 4, icon: "🌡️", category: "Fever Check", stepLabel: "Temperature",
+        title: "Do you feel unusually hot, or have you measured a fever above 38°C?",
+        why: "Fever is a key indicator of infection — especially important in malaria-endemic regions.",
+        type: "options",
+        options: [
+          { label: "Yes, I have a fever above 38°C", value: "high", score: 2 },
+          { label: "I feel warm but haven't measured", value: "maybe", score: 1 },
+          { label: "No fever", value: "no", score: 0 }
+        ]
+      },
+      {
+        id: 5, icon: "🚶", category: "Functionality", stepLabel: "Daily Activities",
+        title: "Are your symptoms preventing you from doing daily activities?",
+        why: "If you can't eat, walk, or work normally, your body is signalling a need for care.",
+        type: "options",
+        options: [
+          { label: "Yes, completely unable to function", value: "yes_full", score: 3 },
+          { label: "Partially — managing with difficulty", value: "partial", score: 1 },
+          { label: "No, I can do most things normally", value: "no", score: 0 }
+        ]
+      },
+      {
+        id: 6, icon: "🧑‍⚕️", category: "Risk Group", stepLabel: "Vulnerable Groups",
+        title: "Are you in a high-risk group?",
+        why: "Vulnerable groups need a lower threshold for seeking care — a minor fever in an infant is urgent.",
+        type: "options",
+        options: [
+          { label: "Pregnant", value: "pregnant", score: 2 },
+          { label: "Over 65 years old", value: "elderly", score: 2 },
+          { label: "Child under 5 years old", value: "child", score: 2 },
+          { label: "Living with a chronic condition (Diabetes, HIV, etc.)", value: "chronic", score: 2 },
+          { label: "None of the above", value: "none", score: 0 }
+        ]
+      },
+      {
+        id: 7, icon: "📈", category: "Progression", stepLabel: "Getting Better?",
+        title: "Are your symptoms getting better, staying the same, or getting worse?",
+        why: "Worsening symptoms are a clear signal that rest alone is no longer the right advice.",
+        type: "options",
+        options: [
+          { label: "✅ Getting better", value: "better", score: 0 },
+          { label: "➡️ Staying the same", value: "same", score: 1 },
+          { label: "⬇️ Getting worse", value: "worse", score: 3 }
+        ]
+      }
+    ],
+    rw: [
+      {
+        id: 0, icon: "🚨", category: "Ikizamini cy'Umutekano", stepLabel: "Umutekano",
+        title: "Ese ufite ingorane yo guhumeka, ububabare bw'igituza, cyangwa guhindura amakenga vuba?",
+        why: "Iri ni ikizamini cy'ingenzi cy'umutekano wawe. 'Yego' bisaba igisubizo cya vuba.",
+        type: "options",
+        options: [
+          { label: "Yego, ndifite kimwe muri izi ngorane", value: "yes", score: 99, urgent: true },
+          { label: "Oya, nta ngorane nfite", value: "no", score: 0 }
+        ]
+      },
+      {
+        id: 1, icon: "🤒", category: "Ikimenyetso Cy'Ingenzi", stepLabel: "Ikibazo Cy'Ingenzi",
+        title: "Ni ikihe gikorwa cy'ingenzi ubu?",
+        why: "Ibi bitwereka ibibazo bikurikira bishingiye ku bimenyo byawe.",
+        type: "options",
+        options: [
+          { label: "🌡️ Ubushyuhe / Kwibwa", value: "fever", score: 1 },
+          { label: "😮‍💨 Inkorora / Ingorane yo guhumeka", value: "cough", score: 1 },
+          { label: "🤢 Ububabare bw'inda / Iseseme", value: "stomach", score: 1 },
+          { label: "🤕 Ikomere / Ububabare ahandi", value: "injury", score: 1 },
+          { label: "😴 Umunaniro / Ubuke bw'imbaraga", value: "fatigue", score: 0 },
+          { label: "🤧 Umuliro w'umutwe / Ibimenyetso by'izuru", value: "headache", score: 0 }
+        ]
+      },
+      {
+        id: 2, icon: "📅", category: "Igihe", stepLabel: "Ni Igihe Kingahe",
+        title: "Wiyumvise gutyo mu minsi ingahe?",
+        why: "Igihe cy'inkorora cy'ibyumweru 3 bishobora kugaragaza ingorane nini nka Indwara ya TB.",
+        type: "options",
+        options: [
+          { label: "Munsi y'umunsi umwe", value: "lt1", score: 0 },
+          { label: "Imisi 1–3", value: "1to3", score: 0 },
+          { label: "Imisi 4–7", value: "4to7", score: 1 },
+          { label: "Ibyumweru 1–2", value: "1to2w", score: 2 },
+          { label: "Ibyumweru 2 n'isaho", value: "gt2w", score: 3 }
+        ]
+      },
+      {
+        id: 3, icon: "📊", category: "Ubukana", stepLabel: "Urwego rw'Ububabare",
+        title: "Ku gipimo cya 1 kugeza 10, ububabare bwawe bufite ubukana bungahe?",
+        why: "Ubukana bwo hejuru (hejuru ya 7) ni ikimenyetso cy'ingenzi cyo gushaka ubuvuzi bw'umwuga.",
+        type: "slider"
+      },
+      {
+        id: 4, icon: "🌡️", category: "Ubushyuhe", stepLabel: "Ubushyuhe bw'Umubiri",
+        title: "Wiyumva ubushyuhe budasanzwe, cyangwa wapimye ubushyuhe burenga 38°C?",
+        why: "Ubushyuhe ni ikimenyetso cy'ingenzi cy'indwara — cyane cyane mu turere dufite malariya.",
+        type: "options",
+        options: [
+          { label: "Yego, nfite ubushyuhe burenga 38°C", value: "high", score: 2 },
+          { label: "Niyumva ubushyuhe ariko sinapimye", value: "maybe", score: 1 },
+          { label: "Nta bushyuhe", value: "no", score: 0 }
+        ]
+      },
+      {
+        id: 5, icon: "🚶", category: "Imirimo y'Buri Munsi", stepLabel: "Ibikorwa bya Buri Munsi",
+        title: "Bimenyo byawe biragutabara gukora imirimo ya buri munsi?",
+        why: "Niba udashobora kurya, gutembera, cyangwa gukora, umubiri wawe ugusaba ubuvuzi.",
+        type: "options",
+        options: [
+          { label: "Yego, ntashobora gukora na kimwe", value: "yes_full", score: 3 },
+          { label: "Gato — nkora ariko birangoye", value: "partial", score: 1 },
+          { label: "Oya, ndakora ibintu byinshi neza", value: "no", score: 0 }
+        ]
+      },
+      {
+        id: 6, icon: "🧑‍⚕️", category: "Itsinda Rishoborwa", stepLabel: "Amatsinda Ashoborwa",
+        title: "Uri mu itsinda rishoborwa?",
+        why: "Amatsinda ashoborwa akeneye kujya kwa muganga vuba — ubushyuhe buto mu mwana w'amezi biratinze.",
+        type: "options",
+        options: [
+          { label: "Umubyeyi w'inda", value: "pregnant", score: 2 },
+          { label: "Afite imyaka irenga 65", value: "elderly", score: 2 },
+          { label: "Umwana w'imyaka itari 5", value: "child", score: 2 },
+          { label: "Afite indwara idakira (Diyabete, Sida, n.s.)", value: "chronic", score: 2 },
+          { label: "Nta na kimwe mu biranga haruguru", value: "none", score: 0 }
+        ]
+      },
+      {
+        id: 7, icon: "📈", category: "Imiterere y'Imbere", stepLabel: "Biragenda Neza?",
+        title: "Bimenyo byawe biriyongera, biguma kimwe, cyangwa biragenda bikomera?",
+        why: "Bimenyo bigenda bikomera ni ikimenyetso cy'uko isinzirira gusa si inama nziza.",
+        type: "options",
+        options: [
+          { label: "✅ Biragenda neza", value: "better", score: 0 },
+          { label: "➡️ Biguma kimwe", value: "same", score: 1 },
+          { label: "⬇️ Biragenda bikomera", value: "worse", score: 3 }
+        ]
+      }
+    ]
+  };
+
+  // ─── SELF-CARE STEPS ───
+  const SELF_CARE = {
+    en: {
+      green: [
+        "💧 Drink plenty of fluids (water, herbal teas, oral rehydration salts if needed)",
+        "🛌 Rest well — your body heals during rest",
+        "💊 Take paracetamol or ibuprofen as directed for fever or pain relief",
+        "🌡️ Monitor your temperature every few hours",
+        "🥗 Eat light, nutritious meals even if your appetite is low",
+        "📱 If symptoms worsen after 24–48 hours, seek care immediately"
+      ],
+      yellow: [
+        "🏥 Contact a local clinic or health worker for advice within 24 hours",
+        "💧 Stay well hydrated — drink fluids regularly",
+        "🛌 Prioritise rest and avoid strenuous activity",
+        "💊 Use over-the-counter medication for symptom relief if appropriate",
+        "📋 Keep track of your symptoms — note any new developments",
+        "👥 Inform someone at home about your condition",
+        "🚨 If you develop breathing difficulty or chest pain, seek emergency care immediately"
+      ]
+    },
+    rw: {
+      green: [
+        "💧 Nywa amazi menshi (amazi, icyayi, ORS niba bikenewe)",
+        "🛌 Sinya neza — umubiri wawe uvurwa mu gihe cy'isinzirira",
+        "💊 Fata paracetamol cyangwa ibuprofen nk'uko bisabwa ku bushuhe cyangwa ububabare",
+        "🌡️ Pima ubushyuhe bwa buri masaha make",
+        "🥗 Rya ibiribwa byoroshye n'ingirakamaro nubwo utarishoye",
+        "📱 Niba bimenyo bikomereye nyuma y'amasaha 24-48, shaka ubuvuzi vuba"
+      ],
+      yellow: [
+        "🏥 Tumanahana na kliniki cyangwa umukozi w'ubuzima mu masaha 24 ari imbere",
+        "💧 Komeza kunywa amazi menshi ku gihe",
+        "🛌 Sinya kandi wirinde imirimo inaniza",
+        "💊 Koresha imiti y'ibisabwa nk'uko bisabwa kugabanya bimenyo",
+        "📋 Komeza gukurikirana bimenyo byawe — andika ibintu bishya",
+        "👥 Menyesha umuntu wo mu rugo inzira yawe",
+        "🚨 Niba ubonye ingorane yo guhumeka cyangwa ububabare bw'igituza, shaka ubuvuzi bw'ihutirwa vuba"
+      ]
+    }
+  };
+
+  // ─── RESULTS CONFIG ───
+  const RESULTS = {
+    en: {
+      urgent: {
+        icon: "🚨", color: "red",
+        badge: "Seek Immediate Care",
+        title: "Visit Clinic Urgently",
+        desc: "Your symptoms suggest you need professional medical attention as soon as possible. Please do not delay — visit your nearest clinic, hospital, or call emergency services immediately.",
+        badgeClass: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
+        iconBg: "bg-red-100 dark:bg-red-900/30",
+        titleClass: "text-red-600 dark:text-red-400",
+        barClass: "bg-gradient-to-r from-red-400 to-red-600"
+      },
+      monitor: {
+        icon: "⚠️", color: "yellow",
+        badge: "Monitor Closely",
+        title: "Rest and Monitor",
+        desc: "Your symptoms are notable but not immediately dangerous. Rest, stay hydrated, and monitor your condition closely over the next 24–48 hours. Seek care if things worsen.",
+        badgeClass: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+        iconBg: "bg-yellow-100 dark:bg-yellow-900/30",
+        titleClass: "text-yellow-600 dark:text-yellow-400",
+        barClass: "bg-gradient-to-r from-yellow-400 to-yellow-600"
+      },
+      selfmanage: {
+        icon: "✅", color: "green",
+        badge: "Self-Manageable",
+        title: "Self-Manage at Home",
+        desc: "Based on your answers, your symptoms appear mild and manageable at home. Follow the self-care steps below and rest well. If anything changes, don't hesitate to seek advice.",
+        badgeClass: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+        iconBg: "bg-green-100 dark:bg-green-900/30",
+        titleClass: "text-green-600 dark:text-green-400",
+        barClass: "bg-gradient-to-r from-green-400 to-green-600"
+      }
+    },
+    rw: {
+      urgent: {
+        icon: "🚨", color: "red",
+        badge: "Shaka Ubuvuzi Bw'Ihutirwa",
+        title: "Jya Kwa Muganga Vuba",
+        desc: "Bimenyo byawe bigaragaza ko ukeneye ubuvuzi bw'umwuga vuba. Jya mu kliniki ya hafi, ibitaro, cyangwa hamagara serivisi z'ihutirwa vuba.",
+        badgeClass: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
+        iconBg: "bg-red-100 dark:bg-red-900/30",
+        titleClass: "text-red-600 dark:text-red-400",
+        barClass: "bg-gradient-to-r from-red-400 to-red-600"
+      },
+      monitor: {
+        icon: "⚠️", color: "yellow",
+        badge: "Kurikirana Neza",
+        title: "Sinya no Kurikirana",
+        desc: "Bimenyo byawe birashimishije ariko ntibifite akaga vuba. Sinya, nywa amazi, ukurikirana inzira yawe mu masaha 24–48. Shaka ubuvuzi niba bikomereye.",
+        badgeClass: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+        iconBg: "bg-yellow-100 dark:bg-yellow-900/30",
+        titleClass: "text-yellow-600 dark:text-yellow-400",
+        barClass: "bg-gradient-to-r from-yellow-400 to-yellow-600"
+      },
+      selfmanage: {
+        icon: "✅", color: "green",
+        badge: "Kwiyitaho Mu Rugo",
+        title: "Kwiyitaho Mu Rugo",
+        desc: "Hashingiwe ku bisubizo byawe, bimenyo byawe bisa nkaho bishobora gufatwa mu rugo. Kurikira ingamba zo kwiyitaho hasi kandi sinya neza.",
+        badgeClass: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+        iconBg: "bg-green-100 dark:bg-green-900/30",
+        titleClass: "text-green-600 dark:text-green-400",
+        barClass: "bg-gradient-to-r from-green-400 to-green-600"
+      }
+    }
+  };
+
+  // ─── STATE ───
+  let lang = 'en';
+  let currentQ = 0;
+  let score = 0;
+  let history = [];
+  let isUrgent = false;
+
+  // ─── THEME ───
+  function toggleTheme() {
+    document.documentElement.classList.toggle('dark');
+    const isDark = document.documentElement.classList.contains('dark');
+    document.getElementById('sun-icon').classList.toggle('hidden', !isDark);
+    document.getElementById('moon-icon').classList.toggle('hidden', isDark);
+  }
+
+  // ─── LANGUAGE ───
+  function setLang(l) {
+    lang = l;
+    document.getElementById('btn-en').classList.toggle('active', l === 'en');
+    document.getElementById('btn-rw').classList.toggle('active', l === 'rw');
+    document.getElementById('btn-en').classList.toggle('text-gray-500', l !== 'en');
+    document.getElementById('btn-rw').classList.toggle('text-gray-500', l !== 'rw');
+    updateLandingText();
+    if (document.getElementById('page-checker').classList.contains('active')) {
+      renderQuestion();
+    }
+    if (document.getElementById('page-results').classList.contains('active')) {
+      showResults();
+    }
+  }
+
+  function updateLandingText() {
+    const t = T[lang];
+    document.getElementById('hero-badge').innerHTML = t.heroBadge;
+    document.getElementById('hero-title').innerHTML = t.heroTitle;
+    document.getElementById('hero-sub').textContent = t.heroSub;
+    document.getElementById('hero-time').textContent = t.heroTime;
+    document.getElementById('cta-btn').textContent = t.ctaBtn;
+    document.getElementById('cta-note').textContent = t.ctaNote;
+    document.getElementById('how-label').textContent = t.howLabel;
+    document.getElementById('step1-title').textContent = t.step1Title;
+    document.getElementById('step1-desc').textContent = t.step1Desc;
+    document.getElementById('step2-title').textContent = t.step2Title;
+    document.getElementById('step2-desc').textContent = t.step2Desc;
+    document.getElementById('step3-title').textContent = t.step3Title;
+    document.getElementById('step3-desc').textContent = t.step3Desc;
+    document.getElementById('limit-title').textContent = t.limitTitle;
+    document.getElementById('limit-1').innerHTML = t.limit1;
+    document.getElementById('limit-2').innerHTML = t.limit2;
+    document.getElementById('limit-3').innerHTML = t.limit3;
+    document.getElementById('limit-4').innerHTML = t.limit4;
+    document.getElementById('limit-5').innerHTML = t.limit5;
+  }
+
+  // ─── NAVIGATION ───
+  function showPage(id) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function goHome() { showPage('page-landing'); updateLandingText(); }
+
+  function startChecker() {
+    currentQ = 0; score = 0; history = []; isUrgent = false;
+    showPage('page-checker');
+    renderQuestion();
+  }
+
+  function goBack() {
+    if (history.length === 0) return;
+    const prev = history.pop();
+    score = prev.score;
+    currentQ = prev.q;
+    isUrgent = false;
+    renderQuestion();
+  }
+
+  // ─── RENDER QUESTION ───
+  function renderQuestion() {
+    const questions = QUESTIONS[lang];
+    const q = questions[currentQ];
+    const total = questions.length;
+
+    // Update progress
+    const pct = Math.round((currentQ / total) * 100);
+    document.getElementById('progress-bar').style.width = pct + '%';
+    document.getElementById('progress-pct').textContent = pct + '%';
+    document.getElementById('progress-label').textContent =
+      lang === 'en' ? `Question ${currentQ + 1} of ${total}` : `Ikibazo ${currentQ + 1} kuri ${total}`;
+
+    // Step dots
+    const dotsEl = document.getElementById('step-dots');
+    dotsEl.innerHTML = '';
+    for (let i = 0; i < total; i++) {
+      const dot = document.createElement('div');
+      dot.className = `step-dot w-2 h-2 rounded-full ${i < currentQ ? 'bg-brand-green' : i === currentQ ? 'bg-brand-blue w-4' : 'bg-gray-300 dark:bg-gray-700'}`;
+      dotsEl.appendChild(dot);
+    }
+
+    // Question content
+    document.getElementById('q-icon').textContent = q.icon;
+    document.getElementById('q-category').textContent = q.category;
+    document.getElementById('q-step-label').textContent = q.stepLabel;
+    document.getElementById('q-title').textContent = q.title;
+    document.getElementById('q-why').textContent = '💬 ' + q.why;
+
+    // Back button
+    document.getElementById('back-btn').classList.toggle('hidden', history.length === 0);
+    document.getElementById('back-label').textContent = T[lang].backLabel;
+
+    // Options or slider
+    const optionsEl = document.getElementById('q-options');
+    const sliderEl = document.getElementById('slider-container');
+    optionsEl.innerHTML = '';
+
+    if (q.type === 'slider') {
+      sliderEl.classList.remove('hidden');
+      optionsEl.classList.add('hidden');
+      document.getElementById('severity-slider').value = 5;
+      document.getElementById('slider-val').textContent = '5';
+      document.getElementById('slider-btn').textContent = lang === 'en' ? 'Continue →' : 'Komeza →';
+    } else {
+      sliderEl.classList.add('hidden');
+      optionsEl.classList.remove('hidden');
+      q.options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn w-full text-left px-5 py-4 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 font-body text-sm text-gray-700 dark:text-gray-300 hover:border-brand-blue dark:hover:border-brand-blue transition-all';
+        btn.textContent = opt.label;
+        btn.onclick = () => selectOption(opt);
+        optionsEl.appendChild(btn);
+      });
+    }
+
+    // Animate card
+    const card = document.getElementById('question-card');
+    card.classList.remove('slide-in');
+    void card.offsetWidth;
+    card.classList.add('slide-in');
+  }
+
+  function selectOption(opt) {
+    history.push({ q: currentQ, score });
+    if (opt.urgent || opt.score === 99) {
+      isUrgent = true;
+      showResults();
+      return;
+    }
+    score += opt.score;
+    currentQ++;
+    if (currentQ >= QUESTIONS[lang].length) {
+      showResults();
+    } else {
+      renderQuestion();
+    }
+  }
+
+  function updateSlider(val) {
+    document.getElementById('slider-val').textContent = val;
+  }
+
+  function submitSlider() {
+    const val = parseInt(document.getElementById('severity-slider').value);
+    let s = 0;
+    if (val >= 8) s = 3;
+    else if (val >= 6) s = 2;
+    else if (val >= 4) s = 1;
+    history.push({ q: currentQ, score });
+    score += s;
+    currentQ++;
+    if (currentQ >= QUESTIONS[lang].length) {
+      showResults();
+    } else {
+      renderQuestion();
+    }
+  }
+
+  // ─── RESULTS ───
+  function showResults() {
+    showPage('page-results');
+    const t = T[lang];
+    const r = RESULTS[lang];
+
+    let resultKey;
+    if (isUrgent) resultKey = 'urgent';
+    else if (score >= 8) resultKey = 'urgent';
+    else if (score >= 4) resultKey = 'monitor';
+    else resultKey = 'selfmanage';
+
+    const res = r[resultKey];
+    const maxScore = 14;
+    const pct = Math.min(Math.round((score / maxScore) * 100), 100);
+
+    // Update result card
+    const iconWrap = document.getElementById('result-icon-wrap');
+    iconWrap.textContent = res.icon;
+    iconWrap.className = `w-20 h-20 rounded-full mx-auto flex items-center justify-center text-4xl mb-4 shadow-lg ${res.iconBg}`;
+
+    const badge = document.getElementById('result-badge');
+    badge.textContent = res.badge;
+    badge.className = `badge mb-3 ${res.badgeClass}`;
+
+    const title = document.getElementById('result-title');
+    title.textContent = res.title;
+    title.className = `font-display text-3xl md:text-4xl font-700 mb-3 ${res.titleClass}`;
+
+    document.getElementById('result-desc').textContent = res.desc;
+    document.getElementById('score-label').textContent = t.scoreLabel;
+    document.getElementById('score-value').textContent = `${Math.min(score, maxScore)}/${maxScore}`;
+    document.getElementById('result-disclaimer').textContent = t.resultDisclaimer;
+    document.getElementById('retake-btn').textContent = t.retakeBtn;
+    document.getElementById('home-btn').textContent = t.homeBtn;
+
+    // Score bar
+    setTimeout(() => {
+      const bar = document.getElementById('score-bar');
+      bar.style.width = pct + '%';
+      bar.className = `h-full rounded-full transition-all duration-700 ${res.barClass}`;
+    }, 300);
+
+    // Self-care steps
+    const stepsSection = document.getElementById('steps-section');
+    const stepsList = document.getElementById('steps-list');
+    const stepsTitle = document.getElementById('steps-title');
+
+    if (resultKey !== 'urgent') {
+      stepsSection.classList.remove('hidden');
+      stepsTitle.innerHTML = t.stepsTitle;
+      stepsList.innerHTML = '';
+      const steps = resultKey === 'selfmanage'
+        ? SELF_CARE[lang].green
+        : SELF_CARE[lang].yellow;
+      steps.forEach(step => {
+        const li = document.createElement('li');
+        li.className = 'flex items-start gap-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl px-4 py-3 font-body text-sm text-gray-700 dark:text-gray-300';
+        li.textContent = step;
+        stepsList.appendChild(li);
+      });
+    } else {
+      stepsSection.classList.add('hidden');
+    }
+  }
+
+  // ─── INIT ───
+  updateLandingText();
+  </script>
+</body>
+</html>
